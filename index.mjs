@@ -6,7 +6,7 @@ import { argv, env } from "process";
 import { authenticate } from '@google-cloud/local-auth';
 import { google } from 'googleapis';
 const fs = _fs.promises;
-
+Promise.sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TOKEN_PATH = pathJoin(__dirname, 'token.json');
@@ -66,21 +66,7 @@ async function downloadAndSave(where, url) {
 }
 
 async function downloadAndSaveSchedule(year, where) {
-    return await downloadAndSave(where, `http://data.nba.net/prod/v2/${year}/schedule.json`);
-}
-
-async function downloadAndSaveTeams(year, where) {
-    return await downloadAndSave(where, `http://data.nba.net/prod/v1/${year}/teams.json`)
-}
-
-async function getTeams(year) {
-    let expectedPath = pathJoin(__dirname, `${year}-teams.json`);
-    try {
-        await fs.access(expectedPath);
-    } catch {
-        return await downloadAndSaveTeams(year, expectedPath);
-    }
-    return JSON.parse(await fs.readFile(expectedPath, "utf-8"))
+    return await downloadAndSave(where, `https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_2.json`);
 }
 
 async function getSeason(year) {
@@ -120,7 +106,30 @@ function fallbackYear() {
  * @returns Object[]
  */
 function filterGames(games, targetTeamId) {
-    return games.filter(g => g.hTeam.teamId == targetTeamId || g.vTeam.teamId == targetTeamId)
+    return games.flatMap(g => g.games).filter(g => g.homeTeam.teamTricode == targetTeamId || g.awayTeam.teamTricode == targetTeamId)
+}
+
+async function clearEvents(calendarId, year, auth) {
+    const calendar = google.calendar({ version: 'v3', auth });
+    const res = await calendar.events.list({
+        calendarId,
+        timeMin: `${year}-09-01T00:00:00z`,
+        singleEvents: true,
+        orderBy: 'startTime',
+    });
+    const events = res.data.items;
+    if (!events || events.length === 0) {
+        console.log('No upcoming events found.');
+        return;
+    }
+    for (let event of events) {
+        await Promise.sleep(500);
+        let res = await calendar.events.delete({
+            calendarId,
+            eventId: event.id,
+        });
+        console.log("deleted ", res.data);
+    }
 }
 
 /**
@@ -131,6 +140,7 @@ function filterGames(games, targetTeamId) {
  */
 async function saveEvents(games, calendarId, auth) {
     const calendar = google.calendar({ version: 'v3', auth });
+    
     let success_ct = 0;
     for (let ev of games) {
         console.log("Inserting :", ev.summary, ev.start.date)
@@ -139,7 +149,7 @@ async function saveEvents(games, calendarId, auth) {
             resource: ev,
         });
         if (result.status != 200) {
-            console.log("Failed to insert event ", ev.summary, result.status, result);
+           console.log("Failed to insert event ", ev.summary, result.status, result);
         } else {
             success_ct += 1;
         }
@@ -147,35 +157,21 @@ async function saveEvents(games, calendarId, auth) {
     return `Inserted ${success_ct} of ${games.length} events`;
 }
 
-/**
- * Convert a flat list of teams into a double indexed table where each team is assigned
- * to the their triCode and teamID keys.
- * @param {Object[]} teams List of teams from data.nba.net
- * @returns Object
- */
-function invertTeams(teams) {
-    let ret = {}
-    for (let team of teams) {
-        ret[team.teamId] = team;
-        ret[team.tricode] = team;
-    }
-    return ret;
-}
-
 function gameToEvent(game, teams, targetTeam) {
-    let gameDt = new Date(game.startTimeUTC);
+    let gameDt = new Date(game.gameDateTimeEst);
     let year = gameDt.getFullYear().toString()
     let month = (gameDt.getMonth() + 1).toString().padStart(2, "0");
     let day = gameDt.getDate().toString().padStart(2, "0");
     let date = {
         date: `${year}-${month}-${day}`,
     }
-    let hTeam = teams[game.hTeam.teamId].nickname;
-    let vTeam = teams[game.vTeam.teamId].nickname;
-    let startTime = gameDt.toLocaleTimeString([], { timeStyle: "short" });
+    let hTeam = game.homeTeam.teamName;
+    let vTeam = game.awayTeam.teamName;
+    let time = new Date(game.gameTimeUTC);
+    let startTime = time.toLocaleTimeString([], { timeStyle: "short" });
     
     let summary
-    if (game.hTeam.teamId == targetTeam) {
+    if (game.homeTeam.teamTricode == targetTeam) {
         summary = `${hTeam} vs ${vTeam} ${startTime}`;
     } else {
         summary = `${vTeam} @ ${hTeam} ${startTime}`;
@@ -218,18 +214,13 @@ async function readConfig() {
     let auth = await authorize();
     let config = await readConfig();
     
-    let teams = await getTeams(config.year);
-    let sortedTeams = invertTeams(teams.league.standard);
-    let team = sortedTeams[config.teamCode];
-    if (!team) {
-        throw "Unknown team code" + teamCode;
-    }
+    // await clearEvents(config.calendarId, auth)
     let allSeasons = await getSeason(config.year);
     if (!allSeasons) {
         return "Error fetching season"
     }
-    let teamGames = filterGames(allSeasons.league.standard, team.teamId)
-        .map(g => gameToEvent(g, sortedTeams, team.teamId));
+    let teamGames = filterGames(allSeasons.leagueSchedule.gameDates, config.teamCode)
+        .map(g => gameToEvent(g, {}, config.teamCode));
     return await saveEvents(teamGames, config.calendarId, auth);
 })().then(msg => console.log("complete", msg))
     .catch(e => console.log(e));

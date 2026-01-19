@@ -1,12 +1,22 @@
-import fetch from "node-fetch";
-import { dirname, join as pathJoin } from 'path';
-import _fs from "node:fs";
-import { fileURLToPath } from 'url';
-import { argv, env } from "process";
+import { dirname, join as pathJoin } from 'node:path';
+import * as fs from "node:fs/promises";
+import { fileURLToPath } from 'node:url';
 import { authenticate } from '@google-cloud/local-auth';
 import { google } from 'googleapis';
-const fs = _fs.promises;
+import * as https from "node:https";
+
 Promise.sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+const fetch = async (url, options) => {
+    return new Promise((r, j) => {
+        https.request(url, options, res => {
+            if (res.ok) {
+                return r(res)
+            }
+            return j(res);
+        });
+    })
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TOKEN_PATH = pathJoin(__dirname, 'token.json');
@@ -54,13 +64,17 @@ async function authorize() {
 // end google auth code
 // data.nba.net interactions
 async function downloadAndSave(where, url) {
+    console.log("fetching", url, "to", where);
     let res = await fetch(url);
+    console.log("fetch resolved", res.statusText);
     if (!res.ok) {
         console.error("Non 200 return code");
         console.error(await res.text());
         return;
     }
+    console.log("response was ok, reading json body");
     let body = await res.json();
+    console.log("writing response to", where);
     await fs.writeFile(where, JSON.stringify(body));
     return body;
 }
@@ -72,8 +86,10 @@ async function downloadAndSaveSchedule(year, where) {
 async function getSeason(year) {
     let expectedPath = pathJoin(__dirname, `${year}-schedule.json`);
     try {
+        console.log("found cached file");
         await fs.access(expectedPath);
     } catch {
+        console.log("no cached file, downloading fresh");
         return await downloadAndSaveSchedule(year, expectedPath);
     }
     return JSON.parse(await fs.readFile(expectedPath, "utf-8"))
@@ -210,17 +226,19 @@ async function readConfig() {
     return cfg;
 }
 
-(async () => {
-    let auth = await authorize();
-    let config = await readConfig();
-    
-    // await clearEvents(config.calendarId, auth)
-    let allSeasons = await getSeason(config.year);
-    if (!allSeasons) {
-        return "Error fetching season"
-    }
-    let teamGames = filterGames(allSeasons.leagueSchedule.gameDates, config.teamCode)
-        .map(g => gameToEvent(g, {}, config.teamCode));
-    return await saveEvents(teamGames, config.calendarId, auth);
-})().then(msg => console.log("complete", msg))
-    .catch(e => console.log(e));
+console.log("authorizing");
+let auth = await authorize();
+console.log("reading config");
+let config = await readConfig();
+console.log("getting season");
+// await clearEvents(config.calendarId, auth)
+let allSeasons = await getSeason(config.year);
+if (!allSeasons) {
+    return "Error fetching season"
+}
+console.log("filtering games");
+let teamGames = filterGames(allSeasons.leagueSchedule.gameDates, config.teamCode)
+    .map(g => gameToEvent(g, {}, config.teamCode));
+console.log("saving events");
+let msg = await saveEvents(teamGames, config.calendarId, auth);
+console.log("complete", msg)

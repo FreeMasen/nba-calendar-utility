@@ -1,0 +1,24 @@
+{
+  "name": "nba-calendar-utility",
+  "version": "1.0.0",
+  "description": "This is a command line utility written in nodejs that will create a google calendar event for each scheduled game for a single NBA team. Each event is created as an \"all day\" event with the details in the event summary. The format looks like the following",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FreeMasen/nba-calendar-utility.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/FreeMasen/nba-calendar-utility/issues"
+  },
+  "homepage": "https://github.com/FreeMasen/nba-calendar-utility#readme",
+  "dependencies": {
+    "@google-cloud/local-auth": "^3.0.1",
+    "googleapis": "^170.1.0",
+    "node-fetch": "^3.3.2"
+  }
+}

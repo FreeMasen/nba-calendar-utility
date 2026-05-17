@@ -44,7 +44,10 @@ Open `config.json` and update the fields:
 
 - `league`: Either `"nba"` or `"wnba"`. Defaults to `"nba"`.
 - `teamCode`: 3-letter code for your team. Head to nba.com or wnba.com — the scores bar at the top displays these codes.
-- `calendarId`: Either `"primary"` or the full calendar ID from Google Calendar settings → Integrate calendar → Calendar ID.
+- `calendarId`: The calendar identifier. Accepts:
+  - `"primary"` for your default calendar
+  - The calendar email address (e.g. `ab12cd34@group.calendar.google.com`) — find it in Google Calendar settings → Integrate calendar → Calendar ID
+  - A full Google Calendar URL — just paste the URL from your browser and the config parser will extract the ID
 - `year`: The season year. Defaults to the current season year (if the current month is ≤ April, last year is used).
 
 ### Auth

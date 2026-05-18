@@ -4,7 +4,6 @@
  *
  * @typedef {object} LeagueAdapter
  * @property {string} name - Human-readable name (e.g. "NBA", "WNBA")
- * @property {string} seasonKey - Config key for the season year
  * @property {(year: number, cacheDir: string) => Promise<Game[]>} fetchSchedule
  */
 
@@ -36,7 +35,6 @@ async function fetchJSON(url, extraHeaders = {}) {
  */
 export const nba = {
     name: "NBA",
-    seasonKey: "nbaYear",
 
     async fetchSchedule(year, cacheDir) {
         const fs = await import("node:fs/promises");

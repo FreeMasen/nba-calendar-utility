@@ -73,14 +73,9 @@ function fallbackYear() {
 
 /**
  * Read and validate config.json.
- * Supports both legacy and multi-league configs:
  *
- * Legacy:
- *   { "teamCode": "NYK", "calendarId": "...", "year": 2025 }
- *
- * Multi-league:
- *   { "calendarId": "...", "league": "nba", "teamCode": "NYK", "year": 2025 }
- *   { "calendarId": "...", "league": "wnba", "teamCode": "NYL", "wnbaYear": 2026 }
+ * Config format:
+ *   { "league": "nba", "teamCode": "NYK", "calendarId": "...", "year": 2025 }
  *
  * @returns {{ calendarId: string, league: string, teamCode: string, year: number }}
  */

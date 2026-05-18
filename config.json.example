@@ -1,6 +1,6 @@
 {
     "league": "nba",
-    "teamCode": "<Three-Letter-Team-Code>",
-    "calendarId": "<Calendar ID, email, or URL from Google Calendar>",
+    "teamCode": "NYK",
+    "calendarId": "primary",
     "year": null
 }

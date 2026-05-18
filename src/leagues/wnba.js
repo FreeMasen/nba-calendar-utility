@@ -31,7 +31,6 @@ async function fetchJSON(url, extraHeaders = {}) {
 
 export const wnba = {
     name: "WNBA",
-    seasonKey: "wnbaYear",
 
     async fetchSchedule(year, cacheDir) {
         const fs = await import("node:fs/promises");

@@ -42,9 +42,9 @@ mv ~/Downloads/client_secret.apps.googleusercontent.com.json ./credentials.json
 
 Open `config.json` and update the fields:
 
-- `league`: Either `"nba"` or `"wnba"`. Defaults to `"nba"`.
-- `teamCode`: 3-letter code for your team. Head to nba.com or wnba.com — the scores bar at the top displays these codes.
-- `calendarId`: The calendar identifier. Accepts:
+- `league`: Which league to use — `"nba"` or `"wnba"`.
+- `teamCode`: 3-letter code for your team (e.g. `NYK`, `LAL`, `NYL`). Head to nba.com or wnba.com — the scores bar at the top displays these codes.
+- `calendarId`: The calendar to write events to. Accepts:
   - `"primary"` for your default calendar
   - The calendar email address (e.g. `ab12cd34@group.calendar.google.com`) — find it in Google Calendar settings → Integrate calendar → Calendar ID
   - A full Google Calendar URL — just paste the URL from your browser and the config parser will extract the ID
@@ -75,7 +75,6 @@ import { Game } from "../game.js";
 
 export const myLeague = {
     name: "My League",
-    seasonKey: "myLeagueYear",
 
     async fetchSchedule(year, cacheDir) {
         // 1. Check for a cached file in cacheDir

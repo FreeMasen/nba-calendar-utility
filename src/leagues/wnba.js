@@ -7,7 +7,14 @@
  */
 
 import { Game } from "../game.js";
+import { fetch } from "../fetch.js";
 
+/**
+ * Fetch JSON with browser-like headers (WNBA CDN blocks non-browser UAs)
+ * @param {string} url
+ * @param {object} [extraHeaders]
+ * @returns {Promise<any>}
+ */
 async function fetchJSON(url, extraHeaders = {}) {
     const res = await fetch(url, {
         headers: {

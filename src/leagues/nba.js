@@ -9,9 +9,10 @@
  */
 
 import { Game } from "../game.js";
+import { fetch } from "../fetch.js";
 
 /**
- * Fetch with browser-like headers (NBA/CDN blocks non-browser UAs)
+ * Fetch JSON with browser-like headers (NBA/CDN blocks non-browser UAs)
  * @param {string} url
  * @param {object} [extraHeaders]
  * @returns {Promise<any>}

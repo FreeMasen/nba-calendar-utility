@@ -1,6 +1,6 @@
 # NBA/WNBA Calendar Utility
 
-A command line utility written in Node.js that creates Google Calendar events for each scheduled game of a single NBA or WNBA team. Each event is created as an "all day" event with details in the summary. The format looks like:
+A command line utility written in Node.js that creates Google Calendar events for each scheduled game of a single NBA or WNBA team. Each event is created as a **timed event** at the game's scheduled start time in the arena's local timezone, with daylight saving time handled automatically. The format looks like:
 
 ```text
 <Target Team Nickname> <[vs|@]> <Opponent Nickname> <Local Time>
@@ -109,7 +109,8 @@ And add it to the `LEAGUES` map in `index.mjs`.
 ```
 index.mjs              Entry point — reads config, picks adapter, runs the pipeline
 src/
-  game.js              Game class — normalized game + toCalendarEvent()
+  game.js              Game class — normalized game + toCalendarEvent() with DST-aware timezones
+  timezones.js         Team tricode → IANA timezone mapping (handles DST via Google Calendar)
   calendar.js          Google auth, clearEvents, saveEvents
   config.js            readConfig() — parses and validates config.json
   leagues/

@@ -10,20 +10,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const LEAGUES = { nba, wnba };
 
-async function main() {
-    console.log("authorizing");
-    let auth = await authorize();
+/**
+ * Process a single team: fetch its schedule and insert calendar events.
+ *
+ * @param {import('./src/leagues/index.js').LeagueAdapter} adapter
+ * @param {import('./src/config.js').TeamEntry} teamEntry
+ * @param {any} auth
+ * @param {string} cacheDir
+ */
+async function processTeam(adapter, teamEntry, auth, cacheDir) {
+    const { teamCode, calendarId, year } = teamEntry;
 
-    console.log("reading config");
-    let { calendarId, league: leagueName, teamCode, year } = await readConfig();
-
-    let adapter = LEAGUES[leagueName];
-    if (!adapter) {
-        throw new Error(`Unknown league "${leagueName}". Supported: ${Object.keys(LEAGUES).join(", ")}`);
-    }
-
-    console.log(`[${adapter.name}] getting ${year} schedule for ${teamCode}`);
-    let allGames = await adapter.fetchSchedule(year, __dirname);
+    console.log(`\n[${adapter.name}] getting ${year} schedule for ${teamCode}`);
+    let allGames = await adapter.fetchSchedule(year, cacheDir);
 
     // Filter to just this team's games
     let teamGames = allGames.filter(
@@ -34,9 +33,32 @@ async function main() {
     // Optional: uncomment to clear existing events first
     // await clearEvents(calendarId, year, auth);
 
-    console.log("saving events");
+    console.log(`[${adapter.name}] saving events for ${teamCode} to calendar ${calendarId}`);
     let msg = await saveEvents(teamGames, calendarId, teamCode, auth);
-    console.log("complete", msg);
+    console.log(`[${adapter.name}] ${teamCode} complete: ${msg}`);
+}
+
+async function main() {
+    console.log("authorizing");
+    let auth = await authorize();
+
+    console.log("reading config");
+    let config = await readConfig();
+
+    for (let leagueConfig of config.leagues) {
+        let adapter = LEAGUES[leagueConfig.league];
+        if (!adapter) {
+            throw new Error(
+                `Unknown league "${leagueConfig.league}". Supported: ${Object.keys(LEAGUES).join(", ")}`
+            );
+        }
+
+        for (let teamEntry of leagueConfig.teams) {
+            await processTeam(adapter, teamEntry, auth, __dirname);
+        }
+    }
+
+    console.log("\nAll teams processed.");
 }
 
 main().catch(err => {

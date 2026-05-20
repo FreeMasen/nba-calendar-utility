@@ -4,7 +4,7 @@
   "description": "This is a command line utility written in nodejs that will create a google calendar event for each scheduled game for a single NBA team. Each event is created as an \"all day\" event with the details in the event summary. The format looks like the following",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test test/**/*.test.js"
   },
   "repository": {
     "type": "git",

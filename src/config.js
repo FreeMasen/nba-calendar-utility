@@ -12,7 +12,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  *   - A Google Calendar URL like "https://calendar.google.com/calendar/embed?src=ab12cd34%40group.calendar.google.com"
  *   - A Google Calendar settings URL like "https://calendar.google.com/calendar/r/settings/calendar/ab12cd34@group.calendar.google.com"
  */
-function extractCalendarId(value) {
+export function extractCalendarId(value) {
     // "primary" is a special value the API accepts as-is
     if (value === "primary") {
         return value;
@@ -36,7 +36,7 @@ function extractCalendarId(value) {
             }
 
             // Calendar view URLs: /calendar/r/ENCODED_EMAIL/...
-            match = url.pathname.match(/\/calendar\/r\/([^/]+)/);
+            match = url.pathname.match(/calendar\/r\/([^/]+)/);
             if (match) {
                 let candidate = decodeURIComponent(match[1]);
                 // Only if it looks like an email address
@@ -58,10 +58,10 @@ function extractCalendarId(value) {
 
 /**
  * Fallback season year: current year if month > April, otherwise last year.
- * The 2022/2023 NBA season started in October 2022 and ended April 2023,
- * but is treated as the "2022 season" by the API.
+ * The NBA season starts in October and ends in April,
+ * but is treated as the "previous year" season by the API.
  */
-function fallbackYear() {
+export function fallbackYear() {
     let today = new Date();
     let year = today.getFullYear();
     let month = today.getMonth();
@@ -72,40 +72,92 @@ function fallbackYear() {
 }
 
 /**
+ * Validate and normalize a single team entry.
+ *
+ * @param {object} entry - A team config entry
+ * @param {string} league - League name (for error messages)
+ * @returns {{ teamCode: string, calendarId: string, year: number }}
+ */
+function validateTeamEntry(entry, league) {
+    if (!entry.teamCode || typeof entry.teamCode != "string" || entry.teamCode.length != 3) {
+        throw new Error(
+            `Invalid config.json: teamCode is required and must be a 3-character string ` +
+            `(in ${league} entry: ${JSON.stringify(entry)})`
+        );
+    }
+    let teamCode = entry.teamCode.toUpperCase();
+
+    if (!entry.calendarId || typeof entry.calendarId != "string") {
+        throw new Error(
+            `Invalid config.json: calendarId is required for team ${teamCode} in ${league}`
+        );
+    }
+    let calendarId = extractCalendarId(entry.calendarId);
+
+    let year = entry.year;
+    if (!year || typeof year != "number") {
+        year = fallbackYear();
+    }
+
+    return { teamCode, calendarId, year };
+}
+
+/**
  * Read and validate config.json.
  *
- * Config format:
- *   { "league": "nba", "teamCode": "NYK", "calendarId": "...", "year": 2025 }
+ * The config is a JSON object where each key is a league name
+ * and the value is an array of team entries. Each team entry
+ * specifies a team code, the calendar to write to, and optionally
+ * a season year.
  *
- * @returns {{ calendarId: string, league: string, teamCode: string, year: number }}
+ * Example:
+ *   {
+ *     "nba": [
+ *       { "teamCode": "NYK", "calendarId": "primary", "year": 2025 },
+ *       { "teamCode": "BOS", "calendarId": "celtics@group.calendar.google.com" }
+ *     ],
+ *     "wnba": [
+ *       { "teamCode": "NYL", "calendarId": "liberty@group.calendar.google.com" }
+ *     ]
+ *   }
+ *
+ * If year is omitted, it defaults to the current season year
+ * (see fallbackYear).
+ *
+ * @returns {Record<string, { teamCode: string, calendarId: string, year: number }[]>}
+ *   A map of league name → array of validated team entries
  */
 export async function readConfig() {
-    let configFile = pathJoin(__dirname, "config.json");
+    let configFile = pathJoin(__dirname, "..", "config.json");
     let json = await fs.readFile(configFile, "utf-8");
     let cfg = JSON.parse(json);
 
-    // calendarId is always required — can be "primary", an email address,
-    // or a full Google Calendar URL (we'll extract the ID from the URL)
-    if (!cfg.calendarId || typeof cfg.calendarId != "string") {
-        throw new Error("Invalid config.json: calendarId is required and must be a string");
-    }
-    let calendarId = extractCalendarId(cfg.calendarId);
-
-    // Determine league
-    let league = (cfg.league ?? "nba").toLowerCase();
-
-    // Determine team code
-    if (!cfg.teamCode || typeof cfg.teamCode != "string" || cfg.teamCode.length != 3) {
-        throw new Error("Invalid config.json: teamCode is required and must be a 3-character string");
-    }
-    let teamCode = cfg.teamCode.toUpperCase();
-
-    // Determine year
-    let year = cfg.year;
-    if (!year || typeof year != "number") {
-        year = fallbackYear();
-        console.warn(`No valid year found in config.json, using default: ${year}`);
+    if (typeof cfg != "object" || cfg === null || Array.isArray(cfg)) {
+        throw new Error("Invalid config.json: must be an object with league keys");
     }
 
-    return { calendarId, league, teamCode, year };
+    let result = {};
+
+    for (let [league, entries] of Object.entries(cfg)) {
+        let leagueLower = league.toLowerCase();
+
+        if (!Array.isArray(entries)) {
+            throw new Error(
+                `Invalid config.json: value for "${league}" must be an array of team entries`
+            );
+        }
+
+        if (entries.length === 0) {
+            console.warn(`No team entries for ${leagueLower}, skipping`);
+            continue;
+        }
+
+        result[leagueLower] = entries.map(entry => validateTeamEntry(entry, leagueLower));
+    }
+
+    if (Object.keys(result).length === 0) {
+        throw new Error("Invalid config.json: no leagues configured");
+    }
+
+    return result;
 }

@@ -1,6 +1,6 @@
 # NBA/WNBA Calendar Utility
 
-A command line utility written in Node.js that creates Google Calendar events for each scheduled game of a single NBA or WNBA team. Each event is created as a **timed event** at the game's scheduled start time in the arena's local timezone, with daylight saving time handled automatically. The format looks like:
+A command line utility written in Node.js that creates Google Calendar events for scheduled games of your favorite NBA and WNBA teams. Each event is created as a **timed event** at the game's scheduled start time in the arena's local timezone, with daylight saving time handled automatically. The format looks like:
 
 ```text
 <Target Team Nickname> <[vs|@]> <Opponent Nickname> <Local Time>
@@ -10,10 +10,10 @@ The target team's nickname always comes first. For home games the teams are sepa
 
 ## Supported Leagues
 
-| League | Config value | Team code example |
-|--------|-------------|-------------------|
-| NBA    | `nba`       | `NYK`, `LAL`, `BOS` |
-| WNBA   | `wnba`      | `NYL`, `LVA`, `IND` |
+| League | Config key | Team code example |
+|--------|-----------|-------------------|
+| NBA    | `nba`     | `NYK`, `LAL`, `BOS` |
+| WNBA   | `wnba`    | `NYL`, `LVA`, `IND` |
 
 Adding a new league requires implementing the adapter interface in `src/leagues/` — see [Adding a League](#adding-a-league) below.
 
@@ -40,15 +40,32 @@ Copy the Google Calendar credentials into a file called `credentials.json` in th
 mv ~/Downloads/client_secret.apps.googleusercontent.com.json ./credentials.json
 ```
 
-Open `config.json` and update the fields:
+### Config format
 
-- `league`: Which league to use — `"nba"` or `"wnba"`.
-- `teamCode`: 3-letter code for your team (e.g. `NYK`, `LAL`, `NYL`). Head to nba.com or wnba.com — the scores bar at the top displays these codes.
-- `calendarId`: The calendar to write events to. Accepts:
+The config is a JSON object where each key is a league and the value is an array of team entries. This lets you track multiple teams across multiple leagues, each writing to a different calendar.
+
+```json
+{
+    "nba": [
+        { "teamCode": "NYK", "calendarId": "primary" },
+        { "teamCode": "BOS", "calendarId": "celtics@group.calendar.google.com", "year": 2025 }
+    ],
+    "wnba": [
+        { "teamCode": "NYL", "calendarId": "liberty@group.calendar.google.com" }
+    ]
+}
+```
+
+Each team entry has:
+
+- **`teamCode`** (required): 3-letter code for your team (e.g. `NYK`, `LAL`, `NYL`). Head to nba.com or wnba.com — the scores bar at the top displays these codes.
+- **`calendarId`** (required): The calendar to write events to. Accepts:
   - `"primary"` for your default calendar
   - The calendar email address (e.g. `ab12cd34@group.calendar.google.com`) — find it in Google Calendar settings → Integrate calendar → Calendar ID
   - A full Google Calendar URL — just paste the URL from your browser and the config parser will extract the ID
-- `year`: The season year. Defaults to the current season year (if the current month is ≤ April, last year is used).
+- **`year`** (optional): The season year. Defaults to the current season year (if the current month is ≤ April, last year is used).
+
+When you run the utility, it processes each league and each team entry in order, fetching the schedule and inserting events for each team into its specified calendar.
 
 ### Auth
 
@@ -107,12 +124,12 @@ And add it to the `LEAGUES` map in `index.mjs`.
 ## Project Structure
 
 ```
-index.mjs              Entry point — reads config, picks adapter, runs the pipeline
+index.mjs              Entry point — reads config, iterates leagues and teams
 src/
   game.js              Game class — normalized game + toCalendarEvent() with DST-aware timezones
   timezones.js         Team tricode → IANA timezone mapping (handles DST via Google Calendar)
   calendar.js          Google auth, clearEvents, saveEvents
-  config.js            readConfig() — parses and validates config.json
+  config.js            readConfig() — parses and validates multi-league config.json
   leagues/
     index.js           Re-exports all league adapters
     nba.js             NBA adapter (cdn.nba.com)

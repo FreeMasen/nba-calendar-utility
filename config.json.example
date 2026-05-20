@@ -1,6 +1,9 @@
 {
-    "league": "nba",
-    "teamCode": "NYK",
-    "calendarId": "primary",
-    "year": null
+    "nba": [
+        { "teamCode": "NYK", "calendarId": "primary" },
+        { "teamCode": "BOS", "calendarId": "celtics@group.calendar.google.com", "year": 2025 }
+    ],
+    "wnba": [
+        { "teamCode": "NYL", "calendarId": "liberty@group.calendar.google.com" }
+    ]
 }

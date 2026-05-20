@@ -98,7 +98,7 @@ export async function saveEvents(games, calendarId, targetTeam, auth) {
     let successCt = 0;
     for (let game of games) {
         let ev = game.toCalendarEvent(targetTeam);
-        console.log("Inserting:", ev.summary, ev.start.date);
+        console.log("Inserting:", ev.summary, ev.start.dateTime, `(${ev.start.timeZone})`);
         let result = await calendar.events.insert({
             calendarId,
             resource: ev,

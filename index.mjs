@@ -10,6 +10,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const LEAGUES = { nba, wnba };
 
+/**
+ * Process a single team: fetch its schedule and insert calendar events.
+ *
+ * @param {import('./src/leagues/index.js').LeagueAdapter} adapter
+ * @param {import('./src/config.js').TeamEntry} teamEntry
+ * @param {any} auth
+ * @param {string} cacheDir
+ */
 async function processTeam(adapter, teamEntry, auth, cacheDir) {
     const { teamCode, calendarId, year } = teamEntry;
 
@@ -37,15 +45,15 @@ async function main() {
     console.log("reading config");
     let config = await readConfig();
 
-    for (let [leagueName, teamEntries] of Object.entries(config)) {
-        let adapter = LEAGUES[leagueName];
+    for (let leagueConfig of config.leagues) {
+        let adapter = LEAGUES[leagueConfig.league];
         if (!adapter) {
             throw new Error(
-                `Unknown league "${leagueName}". Supported: ${Object.keys(LEAGUES).join(", ")}`
+                `Unknown league "${leagueConfig.league}". Supported: ${Object.keys(LEAGUES).join(", ")}`
             );
         }
 
-        for (let teamEntry of teamEntries) {
+        for (let teamEntry of leagueConfig.teams) {
             await processTeam(adapter, teamEntry, auth, __dirname);
         }
     }

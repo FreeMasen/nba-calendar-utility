@@ -60,7 +60,8 @@ export async function authorize() {
  * @param {number} year
  * @param {any} auth
  */
-export async function clearEvents(calendarId, year, auth) {
+export async function clearEvents(calendarId, year, auth, filter) {
+    filter = filter || (() => true);
     const calendar = google.calendar({ version: 'v3', auth });
     const res = await calendar.events.list({
         calendarId,
@@ -75,6 +76,9 @@ export async function clearEvents(calendarId, year, auth) {
         return;
     }
     for (let event of events) {
+        if (!filter(event)) {
+            continue;
+        }
         await sleep(CALENDAR_INSERT_DELAY_MS);
         let delRes = await calendar.events.delete({
             calendarId,
@@ -99,14 +103,20 @@ export async function saveEvents(games, calendarId, targetTeam, auth) {
     for (let game of games) {
         let ev = game.toCalendarEvent(targetTeam);
         console.log("Inserting:", ev.summary, ev.start.dateTime, `(${ev.start.timeZone})`);
+        
         let result = await calendar.events.insert({
             calendarId,
             resource: ev,
+        }).catch(e => {
+            return e.response;
         });
-        if (result.status != 200) {
-            console.log("Failed to insert event", ev.summary, result.status, result);
-        } else {
+        if (result.status === 200) {
             successCt += 1;
+        } else if (result.status === 409) {
+            // conflict event with id already exists
+            console.log(ev.summary, "already existed");
+        } else {
+            console.log("Failed to insert event", ev.summary, result.status, result);
         }
         await sleep(CALENDAR_INSERT_DELAY_MS);
     }

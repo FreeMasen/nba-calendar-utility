@@ -47,7 +47,8 @@ export const nba = {
             console.log(`[NBA] found cached file: ${cachePath}`);
             data = JSON.parse(await fs.readFile(cachePath, "utf-8"));
         } catch {
-            const SCHEDULE_URL = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_2.json";
+            console.log(`[NBA] cache not found at: ${cachePath}, requesting`);
+            const SCHEDULE_URL = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json";
             console.log(`[NBA] fetching schedule from ${SCHEDULE_URL}`);
             data = await fetchJSON(SCHEDULE_URL, { Referer: "https://www.nba.com/" });
             await fs.writeFile(cachePath, JSON.stringify(data));

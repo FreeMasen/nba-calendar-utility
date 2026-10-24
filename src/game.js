@@ -30,6 +30,24 @@ export class Game {
     }
 
     /**
+     * 
+     * @param {string} preferred_team The user preferred team
+     */
+    summary(preferred_team) {
+        if (this.homeTricode === preferred_team) {
+            return `${this.homeTeam} vs ${this.awayTeam}`;
+        }
+        return `${this.awayTeam} @ ${this.homeTeam}`;
+    }
+
+    /**
+     * @returns {string}
+     */
+    calendarId() {
+        return Buffer.from(`${this.id}${this.summary()}${this.gameLabel}`).toString("hex").substring(0, 1024);
+    }
+
+    /**
      * Convert to a Google Calendar event with a timed start/end
      * and a timezone so DST is handled correctly.
      *
@@ -90,17 +108,11 @@ export class Game {
             timeStyle: "short",
         });
 
-        let summary;
-        if (this.homeTricode === targetTeam) {
-            summary = `${this.homeTeam} vs ${this.awayTeam} ${startTime}`;
-        } else {
-            summary = `${this.awayTeam} @ ${this.homeTeam} ${startTime}`;
-        }
-
         return {
+            id: this.calendarId(),
             start: { dateTime: localDateTime, timeZone: tz },
             end: { dateTime: endDateTime, timeZone: tz },
-            summary,
+            summary: this.summary(),
         };
     }
 }
